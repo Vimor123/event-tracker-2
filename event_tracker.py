@@ -1,5 +1,6 @@
 import os
 import datetime
+import calendar
 import codecs
 import curses
 
@@ -26,12 +27,18 @@ def main(stdscr):
 
     normal_colors = {}
     bright_colors = {}
+    inverted_normal_colors = {}
+    inverted_bright_colors = {}
     
     for index, color in enumerate(color_names):
         curses.init_pair(index + 1, index, -1)
         normal_colors[color] = curses.color_pair(index + 1)
         curses.init_pair(index + 9, index + 8, -1)
         bright_colors[color] = curses.color_pair(index + 9)
+        curses.init_pair(index + 17, -1, index)
+        inverted_normal_colors[color] = curses.color_pair(index + 17)
+        curses.init_pair(index + 25, -1, index + 8)
+        inverted_bright_colors[color] = curses.color_pair(index + 25)
 
     curses.curs_set(0)
 
@@ -45,6 +52,9 @@ def main(stdscr):
             # Reading files
             events = load_events(event_file_path)
             birthdays = load_events(birthday_file_path)
+
+            all_events = events.copy()
+            next_birthdays = []
 
             if show_birthdays:
                 present_day = datetime.datetime.now()
@@ -65,31 +75,39 @@ def main(stdscr):
                     elif years % 10 == 3:
                         suffix = "rd"
 
-                    events.append({
+                    all_events.append({
+                            "date" : datetime.datetime(birthday_year, birthday_month, birthday_day),
+                            "name" : "{}' {}{} birthday".format(birthday["name"], years, suffix)
+                        })
+
+                    next_birthdays.append({
                             "date" : datetime.datetime(birthday_year, birthday_month, birthday_day),
                             "name" : "{}' {}{} birthday".format(birthday["name"], years, suffix)
                         })
 
             def event_date(event):
                 return event["date"]
-            events.sort(key = event_date)
+            all_events.sort(key = event_date)
 
             stdscr.clear()
 
-            stdscr.addstr("Events\n", curses.A_BOLD)
+            border = cols // 2 - 2
+
+            stdscr.addstr(0, border // 2 - 3, "Events\n", curses.A_BOLD)
     
             current_month = 0
             current_year = 0
 
             months_displayed = 0
+            calendar_months = []
 
-            for event in events:
+            for event in all_events:
                 if event["date"].month != current_month or event["date"].year != current_year:
                     if months_displayed < 3:
-                        stdscr.addstr("\n" + event["date"].strftime("%B %Y") + "\n", normal_colors["cyan"])
-                        stdscr.addstr("=" * 40 + "\n")
+                        stdscr.addstr("\n" + event["date"].strftime("%B %Y") + "\n", curses.A_BOLD | normal_colors["cyan"])
                         current_month = event["date"].month
                         current_year = event["date"].year
+                        calendar_months.append((current_month, current_year))
  
                     months_displayed += 1
 
@@ -98,6 +116,64 @@ def main(stdscr):
                                                      event["name"]))
 
             stdscr.addstr("\n")
+
+            stdscr.addstr(0, border + (cols - border) // 2 - 4, "Calendar", curses.A_BOLD)
+
+            current_row = 2
+
+            for month, year in calendar_months:
+                stdscr.addstr(current_row, border + (cols - border) // 2 - len(calendar.month_name[month]) // 2 - 1,
+                              calendar.month_name[month], curses.A_BOLD | normal_colors["cyan"])
+                
+                current_row += 1
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 11, "Mo Tu We Th Fr Sa Su")
+                current_row += 1
+
+                no_of_days = calendar.monthrange(year, month)[1]
+
+                day_in_week = (int(datetime.datetime(year, month, 1).strftime("%w")) - 1 + 7) % 7
+
+                for day in range(1, no_of_days + 1):
+                    current_datetime = datetime.datetime(year, month, day)
+                    date_status = "normal"
+
+                    for event in events:
+                        if event["date"] == current_datetime:
+                            date_status = "event"
+
+                    if show_birthdays:
+                        for birthday in next_birthdays:
+                            if birthday["date"] == current_datetime:
+                                date_status = "birthday"
+
+                    if current_datetime < datetime.datetime.now() - datetime.timedelta(days = 1):
+                        date_status = "past"
+
+                    text = str(day).rjust(2)
+
+                    if date_status == "normal":
+                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text)
+                    elif date_status == "event":
+                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text, inverted_normal_colors["blue"])
+                    elif date_status == "birthday":
+                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text, inverted_normal_colors["red"])
+                    elif date_status == "past":
+                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text, bright_colors["white"])
+
+                    day_in_week += 1
+                    if day_in_week >= 7:
+                        day_in_week = 0
+                        current_row += 1
+
+                current_row += 2
+
+            stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["blue"])
+            stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - event")
+
+            current_row += 1
+
+            stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["red"])
+            stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - birthday")
 
             options = [ "Show birthdays", "Add events", "Delete events", 
                         "Add birthdays", "Delete birthdays", "Delete past events", "Quit" ]
@@ -111,10 +187,17 @@ def main(stdscr):
             while not option_chosen:
 
                 for index, option in enumerate(options):
+                    text = option.ljust(border)
+                    if index != len(options) - 1:
+                        text += "\n"
+
                     if index == current_chosen:
-                        stdscr.addstr(rows - len(options) + index - 1, 0, option.ljust(40) + "\n", curses.A_REVERSE)
+                        stdscr.addstr(rows - len(options) + index, 0, text, curses.A_REVERSE)
                     else:
-                        stdscr.addstr(rows - len(options) + index - 1, 0, option.ljust(40) + "\n")
+                        stdscr.addstr(rows - len(options) + index, 0, text)
+
+                for i in range(rows):
+                    stdscr.addstr(i, border, "|")
 
                 stdscr.refresh()
 
