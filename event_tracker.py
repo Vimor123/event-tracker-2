@@ -48,6 +48,7 @@ def main(stdscr):
 
         show_birthdays = False
         show_whole_year = False
+        current_chosen = 0
 
         while True:
             # Reading files
@@ -177,42 +178,13 @@ def main(stdscr):
 
                 return current_row + 2
 
-
-            if not show_whole_year:
-                for month, year in calendar_months:
-                    current_row = show_calendar(current_row, border + (cols - border) // 2 - 11, month, year) + 1
-
-            else:
-                month, year = calendar_months[0]
-                for month_row in range(4):
-                    current_rows = []
-                    for month_column in range(3):
-                        current_rows.append(show_calendar(current_row, border + (cols - border) // 2 - 11 - 23 + month_column * 23, month, year))
-                        month += 1
-                        if month >= 13:
-                            month = 1
-                            year += 1
-                    current_row = max(current_rows)
-
-
-            stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["blue"])
-            stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - event")
-
-            current_row += 1
-
-            stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["red"])
-            stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - birthday")
-
-            stdscr.refresh()
-
+            
             options = [ "Show birthdays", "Show whole year on calendar", "Add events", "Delete events", 
                         "Add birthdays", "Delete birthdays", "Delete past events", "Quit" ]
             if show_birthdays == True:
                 options[0] = "Hide birthdays"
             if show_whole_year == True:
                 options[1] = "Show only three months on calendar"
-
-            current_chosen = 0
 
             option_chosen = False
 
@@ -235,6 +207,7 @@ def main(stdscr):
                 current_row = 2
 
                 if not show_whole_year:
+                    current_row += 1
                     for month, year in calendar_months:
                         current_row = show_calendar(current_row, border + (cols - border) // 2 - 11, month, year) + 1
 
@@ -292,7 +265,7 @@ def main(stdscr):
             elif selected_option == "Delete birthdays":
                 pass
             elif selected_option == "Delete past events":
-                pass
+                delete_past_events(event_file_path)
             elif selected_option == "Quit":
                 exit(0)
 
