@@ -47,6 +47,7 @@ def main(stdscr):
     def render_main_screen():
 
         show_birthdays = False
+        show_whole_year = False
 
         while True:
             # Reading files
@@ -117,18 +118,19 @@ def main(stdscr):
 
             stdscr.addstr("\n")
 
-            stdscr.addstr(0, border + (cols - border) // 2 - 4, "Calendar", curses.A_BOLD)
+            stdscr.addstr(0, border + (cols - border) // 2 - 5, "Calendar", curses.A_BOLD)
 
             current_row = 2
 
-            for month, year in calendar_months:
-                stdscr.addstr(current_row, border + (cols - border) // 2 - len(calendar.month_name[month]) // 2 - 1,
-                              calendar.month_name[month], curses.A_BOLD | normal_colors["cyan"])
+            def show_calendar(start_row, start_column, month, year):
+                current_row = start_row
+                title = calendar.month_name[month] + " " + str(year)
+                stdscr.addstr(current_row, start_column + 11 - len(title) // 2 - 1,
+                              title, curses.A_BOLD | normal_colors["cyan"])
+                current_row += 1
+                stdscr.addstr(current_row, start_column, "Mo Tu We Th Fr Sa Su", curses.A_BOLD)
+                current_row += 1
                 
-                current_row += 1
-                stdscr.addstr(current_row, border + (cols - border) // 2 - 11, "Mo Tu We Th Fr Sa Su")
-                current_row += 1
-
                 no_of_days = calendar.monthrange(year, month)[1]
 
                 day_in_week = (int(datetime.datetime(year, month, 1).strftime("%w")) - 1 + 7) % 7
@@ -146,26 +148,52 @@ def main(stdscr):
                             if birthday["date"] == current_datetime:
                                 date_status = "birthday"
 
-                    if current_datetime < datetime.datetime.now() - datetime.timedelta(days = 1):
-                        date_status = "past"
+                    if current_datetime < datetime.datetime.now() -datetime.timedelta(days = 1):
+                        if date_status == "event":
+                            date_status = "past event"
+                        elif date_status == "birthday":
+                            date_status = "past birthday"
+                        else:
+                            date_status = "past"
 
                     text = str(day).rjust(2)
-
                     if date_status == "normal":
-                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text)
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text)
                     elif date_status == "event":
-                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text, inverted_normal_colors["blue"])
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, inverted_normal_colors["blue"])
                     elif date_status == "birthday":
-                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text, inverted_normal_colors["red"])
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, inverted_normal_colors["red"])
+                    elif date_status == "past event":
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, normal_colors["blue"])
+                    elif date_status == "past birthday":
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, normal_colors["red"])
                     elif date_status == "past":
-                        stdscr.addstr(current_row, border + (cols - border) // 2 - 11 + day_in_week * 3, text, bright_colors["white"])
-
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, bright_colors["white"])
+                    
                     day_in_week += 1
                     if day_in_week >= 7:
                         day_in_week = 0
                         current_row += 1
 
-                current_row += 2
+                return current_row + 2
+
+
+            if not show_whole_year:
+                for month, year in calendar_months:
+                    current_row = show_calendar(current_row, border + (cols - border) // 2 - 11, month, year) + 1
+
+            else:
+                month, year = calendar_months[0]
+                for month_row in range(4):
+                    current_rows = []
+                    for month_column in range(3):
+                        current_rows.append(show_calendar(current_row, border + (cols - border) // 2 - 11 - 23 + month_column * 23, month, year))
+                        month += 1
+                        if month >= 13:
+                            month = 1
+                            year += 1
+                    current_row = max(current_rows)
+
 
             stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["blue"])
             stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - event")
@@ -175,17 +203,20 @@ def main(stdscr):
             stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["red"])
             stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - birthday")
 
-            options = [ "Show birthdays", "Add events", "Delete events", 
+            stdscr.refresh()
+
+            options = [ "Show birthdays", "Show whole year on calendar", "Add events", "Delete events", 
                         "Add birthdays", "Delete birthdays", "Delete past events", "Quit" ]
             if show_birthdays == True:
                 options[0] = "Hide birthdays"
+            if show_whole_year == True:
+                options[1] = "Show only three months on calendar"
 
             current_chosen = 0
 
             option_chosen = False
 
             while not option_chosen:
-
                 for index, option in enumerate(options):
                     text = option.ljust(border)
                     if index != len(options) - 1:
@@ -200,6 +231,36 @@ def main(stdscr):
                     stdscr.addstr(i, border, "|")
 
                 stdscr.refresh()
+                
+                current_row = 2
+
+                if not show_whole_year:
+                    for month, year in calendar_months:
+                        current_row = show_calendar(current_row, border + (cols - border) // 2 - 11, month, year) + 1
+
+                else:
+                    month, year = calendar_months[0]
+                    for month_row in range(4):
+                        current_rows = []
+                        for month_column in range(3):
+                            current_rows.append(show_calendar(current_row, border + (cols - border) // 2 - 11 - 23 + month_column * 23, month, year))
+                            month += 1
+                            if month >= 13:
+                                month = 1
+                                year += 1
+                        current_row = max(current_rows)
+
+
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["blue"])
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - event")
+
+                current_row += 1
+
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["red"])
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - birthday")
+
+                stdscr.refresh()
+
 
                 key = stdscr.getkey()
 
@@ -218,6 +279,10 @@ def main(stdscr):
                 show_birthdays = True
             elif selected_option == "Hide birthdays":
                 show_birthdays = False
+            elif selected_option == "Show whole year on calendar":
+                show_whole_year = True
+            elif selected_option == "Show only three months on calendar":
+                show_whole_year = False
             elif selected_option == "Add events":
                 pass
             elif selected_option == "Delete events":
