@@ -3,6 +3,7 @@ import datetime
 import calendar
 import codecs
 import curses
+from curses.textpad import rectangle
 
 # Event format: dd.mm.yyyy. - <event name>
 
@@ -46,11 +47,13 @@ def main(stdscr):
 
     def render_main_screen():
 
+        viewing = True
+
         show_birthdays = False
         show_whole_year = False
         current_chosen = 0
 
-        while True:
+        while viewing:
             # Reading files
             events = load_events(event_file_path)
             birthdays = load_events(birthday_file_path)
@@ -257,23 +260,203 @@ def main(stdscr):
             elif selected_option == "Show only three months on calendar":
                 show_whole_year = False
             elif selected_option == "Add events":
-                pass
+                add_events_prompt()
             elif selected_option == "Delete events":
                 pass
             elif selected_option == "Add birthdays":
-                pass
+                add_birthdays_prompt()
             elif selected_option == "Delete birthdays":
                 pass
             elif selected_option == "Delete past events":
                 delete_past_events(event_file_path)
             elif selected_option == "Quit":
-                exit(0)
+                viewing = False
 
             stdscr.addstr(selected_option)
 
+
+    def add_events_prompt():
+        stdscr.clear()
+
+        adding = True
+
+        stdscr.addstr(0, 27, "Add events", curses.A_BOLD)
+        stdscr.addstr(2, 0, "Add events in the following format: \"dd.mm.YYYY. - <event name>\"")
+        stdscr.addstr(3, 0, "Press ENTER to add the event.")
+
+        rectangle(stdscr, 4, 0, 6, 64)
+        stdscr.move(5, 1)
+        curses.curs_set(2)
+
+        writing = True
+
+        options = ["writing", "Back"]
+        current_chosen = 0
+
+        new_event_string = ""
+        current_index = 0
+
+        while adding:
+            for index, option in enumerate(options):
+                if option != "writing":
+                    if index != current_chosen:
+                        stdscr.addstr(6 + index, 0, option.ljust(10))
+                    else:
+                        stdscr.addstr(6 + index, 0, option.ljust(10), curses.A_REVERSE)
+
+            stdscr.move(5, 1 + current_index)
+
+            key = stdscr.getkey()
+            if key == "KEY_UP":
+                current_chosen = (current_chosen - 1 + len(options)) % len(options)
+            elif key == "KEY_DOWN":
+                current_chosen = (current_chosen + 1) % len(options)
+            elif key == "\n":
+                if options[current_chosen] == "writing":
+                    try:
+                        add_event(event_file_path, new_event_string)
+                        stdscr.addstr(5 + len(options) + 2, 0, "Event added".ljust(30), curses.A_BOLD)
+                        stdscr.addstr(5, 1, "".ljust(62))
+                        stdscr.move(5, 1)
+                        current_index = 0
+                        new_event_string = ""
+                    except Exception as e:
+                        error_text = ""
+                        if str(e) == "invalid_event_format":
+                            error_text = "Event format incorrect!"
+                        elif str(e) == "invalid_date_format":
+                            error_text = "Date format invalid!"
+                        elif str(e) == "impossible_date":
+                            error_text = "Date cannot exist!"
+                        elif str(e) == "no_event_name":
+                            error_text = "Event has no name!"
+                        stdscr.addstr(5 + len(options) + 2, 0, error_text.ljust(30), curses.A_BOLD | normal_colors["cyan"])
+                        stdscr.move(5, 1 + current_index)
+                elif options[current_chosen] == "Back":
+                    adding = False
+
+            elif writing:
+                if key == "KEY_LEFT":
+                    if current_index > 0:
+                        current_index -= 1
+                elif key == "KEY_RIGHT":
+                    if current_index < len(new_event_string):
+                        current_index += 1
+                elif key == "KEY_BACKSPACE":
+                    if current_index > 0:
+                        new_event_string = new_event_string[:current_index - 1] + new_event_string[current_index:]
+                        current_index -= 1
+                        stdscr.addstr(5, 1, new_event_string.ljust(62))
+                        stdscr.move(5, 1 + current_index)
+                else:
+                    new_event_string = new_event_string[:current_index] + key + new_event_string[current_index:]
+                    current_index += 1
+                    stdscr.addstr(5, 1, new_event_string.ljust(62))
+                    stdscr.move(5, 1 + current_index)
+
+            if options[current_chosen] != "writing":
+                writing = False
+                curses.curs_set(0)
+
+            else:
+                writing = True
+                curses.curs_set(2)
+
+            stdscr.refresh()
+
+
+    def add_birthdays_prompt():
+        stdscr.clear()
+
+        adding = True
+
+        stdscr.addstr(0, 27, "Add birthdays", curses.A_BOLD)
+        stdscr.addstr(2, 0, "Add birthdays in the following format: \"dd.mm.YYYY. - <name>\"")
+        stdscr.addstr(3, 0, "Press ENTER to add the birthday.")
+
+        rectangle(stdscr, 4, 0, 6, 64)
+        stdscr.move(5, 1)
+        curses.curs_set(2)
+
+        writing = True
+
+        options = ["writing", "Back"]
+        current_chosen = 0
+
+        new_birthday_string = ""
+        current_index = 0
+
+        while adding:
+            for index, option in enumerate(options):
+                if option != "writing":
+                    if index != current_chosen:
+                        stdscr.addstr(6 + index, 0, option.ljust(10))
+                    else:
+                        stdscr.addstr(6 + index, 0, option.ljust(10), curses.A_REVERSE)
+
+            stdscr.move(5, 1 + current_index)
+
+            key = stdscr.getkey()
+            if key == "KEY_UP":
+                current_chosen = (current_chosen - 1 + len(options)) % len(options)
+            elif key == "KEY_DOWN":
+                current_chosen = (current_chosen + 1) % len(options)
+            elif key == "\n":
+                if options[current_chosen] == "writing":
+                    try:
+                        add_event(birthday_file_path, new_birthday_string)
+                        stdscr.addstr(5 + len(options) + 2, 0, "Birthday added".ljust(30), curses.A_BOLD)
+                        stdscr.addstr(5, 1, "".ljust(62))
+                        stdscr.move(5, 1)
+                        current_index = 0
+                        new_birthday_string = ""
+                    except Exception as e:
+                        error_text = ""
+                        if str(e) == "invalid_event_format":
+                            error_text = "Birthday format incorrect!"
+                        elif str(e) == "invalid_date_format":
+                            error_text = "Date format invalid!"
+                        elif str(e) == "impossible_date":
+                            error_text = "Date cannot exist!"
+                        elif str(e) == "no_event_name":
+                            error_text = "Birthday has no name!"
+                        stdscr.addstr(5 + len(options) + 2, 0, error_text.ljust(30), curses.A_BOLD | normal_colors["cyan"])
+                        stdscr.move(5, 1 + current_index)
+                elif options[current_chosen] == "Back":
+                    adding = False
+
+            elif writing:
+                if key == "KEY_LEFT":
+                    if current_index > 0:
+                        current_index -= 1
+                elif key == "KEY_RIGHT":
+                    if current_index < len(new_birthday_string):
+                        current_index += 1
+                elif key == "KEY_BACKSPACE":
+                    if current_index > 0:
+                        new_birthday_string = new_birthday_string[:current_index - 1] + new_birthday_string[current_index:]
+                        current_index -= 1
+                        stdscr.addstr(5, 1, new_birthday_string.ljust(62))
+                        stdscr.move(5, 1 + current_index)
+                else:
+                    new_birthday_string = new_birthday_string[:current_index] + key + new_birthday_string[current_index:]
+                    current_index += 1
+                    stdscr.addstr(5, 1, new_birthday_string.ljust(62))
+                    stdscr.move(5, 1 + current_index)
+
+            if options[current_chosen] != "writing":
+                writing = False
+                curses.curs_set(0)
+
+            else:
+                writing = True
+                curses.curs_set(2)
+
+            stdscr.refresh()
+
+
     render_main_screen()
 
-    stdscr.getch()
 
 
 def load_events(event_file_path):
@@ -310,20 +493,20 @@ def save_events(event_file_path, events):
 def add_event(event_file_path, event_string):
     separator_index = event_string.find('-')
     if separator_index == -1:
-        return
+        raise Exception("invalid_event_format")
     date_string = event_string[:separator_index-1]
     date_list = date_string.split('.')
     if len(date_list) != 4 or date_list[3] != "":
-        return
+        raise Exception("invalid_date_format")
     try:
         date = datetime.datetime(int(date_list[2]),
                                  int(date_list[1]),
                                  int(date_list[0]))
     except ValueError:
-        return
+        raise Exception("impossible_date")
 
     if len(event_string) < separator_index + 3:
-        return
+        raise Exception("no_event_name")
 
     name = event_string[separator_index+2:]
 
