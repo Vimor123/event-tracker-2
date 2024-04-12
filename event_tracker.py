@@ -18,6 +18,10 @@ birthday_file_directory = os.path.dirname(__file__)
 birthday_file_name = 'birthdays.txt'
 birthday_file_path = os.path.join(birthday_file_directory, birthday_file_name)
 
+
+max_event_length = 62
+
+
 def main(stdscr):
     # Prepairing colors
     curses.start_color()
@@ -262,11 +266,11 @@ def main(stdscr):
             elif selected_option == "Add events":
                 add_events_prompt()
             elif selected_option == "Delete events":
-                pass
+                delete_events_prompt()
             elif selected_option == "Add birthdays":
                 add_birthdays_prompt()
             elif selected_option == "Delete birthdays":
-                pass
+                delete_birthdays_prompt()
             elif selected_option == "Delete past events":
                 delete_past_events(event_file_path)
             elif selected_option == "Quit":
@@ -284,7 +288,7 @@ def main(stdscr):
         stdscr.addstr(2, 0, "Add events in the following format: \"dd.mm.YYYY. - <event name>\"")
         stdscr.addstr(3, 0, "Press ENTER to add the event.")
 
-        rectangle(stdscr, 4, 0, 6, 64)
+        rectangle(stdscr, 4, 0, 6, max_event_length + 2)
         stdscr.move(5, 1)
         curses.curs_set(2)
 
@@ -316,7 +320,8 @@ def main(stdscr):
                     try:
                         add_event(event_file_path, new_event_string)
                         stdscr.addstr(5 + len(options) + 2, 0, "Event added".ljust(30), curses.A_BOLD)
-                        stdscr.addstr(5, 1, "".ljust(62))
+                        stdscr.addstr(5 + len(options) + 3, 0, new_event_string.ljust(max_event_length), bright_colors["white"])
+                        stdscr.addstr(5, 1, "".ljust(max_event_length))
                         stdscr.move(5, 1)
                         current_index = 0
                         new_event_string = ""
@@ -346,12 +351,13 @@ def main(stdscr):
                     if current_index > 0:
                         new_event_string = new_event_string[:current_index - 1] + new_event_string[current_index:]
                         current_index -= 1
-                        stdscr.addstr(5, 1, new_event_string.ljust(62))
+                        stdscr.addstr(5, 1, new_event_string.ljust(max_event_length))
                         stdscr.move(5, 1 + current_index)
                 else:
-                    new_event_string = new_event_string[:current_index] + key + new_event_string[current_index:]
-                    current_index += 1
-                    stdscr.addstr(5, 1, new_event_string.ljust(62))
+                    if len(new_event_string) < 62:
+                        new_event_string = new_event_string[:current_index] + key + new_event_string[current_index:]
+                        current_index += 1
+                    stdscr.addstr(5, 1, new_event_string.ljust(max_event_length))
                     stdscr.move(5, 1 + current_index)
 
             if options[current_chosen] != "writing":
@@ -370,11 +376,11 @@ def main(stdscr):
 
         adding = True
 
-        stdscr.addstr(0, 27, "Add birthdays", curses.A_BOLD)
+        stdscr.addstr(0, 26, "Add birthdays", curses.A_BOLD)
         stdscr.addstr(2, 0, "Add birthdays in the following format: \"dd.mm.YYYY. - <name>\"")
         stdscr.addstr(3, 0, "Press ENTER to add the birthday.")
 
-        rectangle(stdscr, 4, 0, 6, 64)
+        rectangle(stdscr, 4, 0, 6, max_event_length + 2)
         stdscr.move(5, 1)
         curses.curs_set(2)
 
@@ -406,7 +412,8 @@ def main(stdscr):
                     try:
                         add_event(birthday_file_path, new_birthday_string)
                         stdscr.addstr(5 + len(options) + 2, 0, "Birthday added".ljust(30), curses.A_BOLD)
-                        stdscr.addstr(5, 1, "".ljust(62))
+                        stdscr.addstr(5 + len(options) + 3, 0, new_birthday_string.ljust(max_event_length), bright_colors["white"])
+                        stdscr.addstr(5, 1, "".ljust(max_event_length))
                         stdscr.move(5, 1)
                         current_index = 0
                         new_birthday_string = ""
@@ -436,12 +443,13 @@ def main(stdscr):
                     if current_index > 0:
                         new_birthday_string = new_birthday_string[:current_index - 1] + new_birthday_string[current_index:]
                         current_index -= 1
-                        stdscr.addstr(5, 1, new_birthday_string.ljust(62))
+                        stdscr.addstr(5, 1, new_birthday_string.ljust(max_event_length))
                         stdscr.move(5, 1 + current_index)
                 else:
-                    new_birthday_string = new_birthday_string[:current_index] + key + new_birthday_string[current_index:]
-                    current_index += 1
-                    stdscr.addstr(5, 1, new_birthday_string.ljust(62))
+                    if len(new_birthday_string) < 62:
+                        new_birthday_string = new_birthday_string[:current_index] + key + new_birthday_string[current_index:]
+                        current_index += 1
+                    stdscr.addstr(5, 1, new_birthday_string.ljust(max_event_length))
                     stdscr.move(5, 1 + current_index)
 
             if options[current_chosen] != "writing":
@@ -455,8 +463,91 @@ def main(stdscr):
             stdscr.refresh()
 
 
-    render_main_screen()
+    def delete_events_prompt():
+        stdscr.clear()
 
+        stdscr.addstr(0, 26, "Delete events", curses.A_BOLD)
+        stdscr.addstr(2, 0, "Press ENTER to delete the highlighted event.")
+        stdscr.addstr(3, 0, "Press Q to go back.")
+
+        deleting = True
+        current_chosen = 0
+
+        events = load_events(event_file_path)
+
+        while deleting:
+            for index, event in enumerate(events):
+                text = "{} - {}".format(event["date"].strftime("%d.%m.%Y."), event["name"])
+                if index != current_chosen:
+                    stdscr.addstr(5 + index, 0, text.ljust(max_event_length))
+                else:
+                    stdscr.addstr(5 + index, 0, text.ljust(max_event_length), curses.A_REVERSE)
+
+            key = stdscr.getkey()
+            
+            if key == "KEY_UP":
+                if len(events) > 0:
+                    current_chosen = (current_chosen - 1 + len(events)) % len(events)
+            elif key == "KEY_DOWN":
+                if len(events) > 0:
+                    current_chosen = (current_chosen + 1) % len(events)
+            elif key == "\n":
+                if len(events) > 0:
+                    events.pop(current_chosen)
+                stdscr.addstr(5 + len(events), 0, "".ljust(max_event_length))
+                if current_chosen >= len(events):
+                    current_chosen -= 1
+
+            elif key == "q":
+                deleting = False
+                save_events(event_file_path, events)
+
+            stdscr.refresh()
+
+
+    def delete_birthdays_prompt():
+        stdscr.clear()
+
+        stdscr.addstr(0, 23, "Delete birthdays", curses.A_BOLD)
+        stdscr.addstr(2, 0, "Press ENTER to delete the highlighted birthday.")
+        stdscr.addstr(3, 0, "Press Q to go back.")
+
+        deleting = True
+        current_chosen = 0
+
+        birthdays = load_events(birthday_file_path)
+
+        while deleting:
+            for index, birthday in enumerate(birthdays):
+                text = "{} - {}".format(birthday["date"].strftime("%d.%m.%Y."), birthday["name"])
+                if index != current_chosen:
+                    stdscr.addstr(5 + index, 0, text.ljust(max_event_length))
+                else:
+                    stdscr.addstr(5 + index, 0, text.ljust(max_event_length), curses.A_REVERSE)
+
+            key = stdscr.getkey()
+            
+            if key == "KEY_UP":
+                if len(birthdays) > 0:
+                    current_chosen = (current_chosen - 1 + len(birthdays)) % len(birthdays)
+            elif key == "KEY_DOWN":
+                if len(birthdays) > 0:
+                    current_chosen = (current_chosen + 1) % len(birthdays)
+            elif key == "\n":
+                if len(birthdays) > 0:
+                    birthdays.pop(current_chosen)
+                stdscr.addstr(5 + len(birthdays), 0, "".ljust(max_event_length))
+                if current_chosen >= len(birthdays):
+                    current_chosen -= 1
+
+            elif key == "q":
+                deleting = False
+                save_events(birthday_file_path, birthdays)
+
+            stdscr.refresh()
+
+
+    render_main_screen()
 
 
 def load_events(event_file_path):
