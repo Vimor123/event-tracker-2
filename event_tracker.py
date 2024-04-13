@@ -53,7 +53,7 @@ def main(stdscr):
 
         viewing = True
 
-        show_birthdays = False
+        show_birthdays = True
         show_whole_year = False
         current_chosen = 0
 
@@ -86,12 +86,12 @@ def main(stdscr):
 
                     all_events.append({
                             "date" : datetime.datetime(birthday_year, birthday_month, birthday_day),
-                            "name" : "{}' {}{} birthday".format(birthday["name"], years, suffix)
+                            "name" : "{}'s {}{} birthday".format(birthday["name"], years, suffix)
                         })
 
                     next_birthdays.append({
                             "date" : datetime.datetime(birthday_year, birthday_month, birthday_day),
-                            "name" : "{}' {}{} birthday".format(birthday["name"], years, suffix)
+                            "name" : "{}'s {}{} birthday".format(birthday["name"], years, suffix)
                         })
 
             def event_date(event):
