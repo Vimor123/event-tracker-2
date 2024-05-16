@@ -21,6 +21,10 @@ birthday_file_path = os.path.join(birthday_file_directory, birthday_file_name)
 
 max_event_length = 62
 
+main_color = "cyan"
+event_color = "blue"
+birthday_color = "red"
+
 
 def main(stdscr):
     # Prepairing colors
@@ -71,7 +75,7 @@ def main(stdscr):
                     birthday_day = birthday["date"].day
                     birthday_month = birthday["date"].month
                     birthday_year = datetime.datetime.now().year
-                    if present_day > datetime.datetime(birthday_year, birthday_month, birthday_day):
+                    if present_day > datetime.datetime(birthday_year, birthday_month, birthday_day) + datetime.timedelta(days = 1):
                         birthday_year += 1
 
                     years = birthday_year - birthday["date"].year
@@ -113,7 +117,7 @@ def main(stdscr):
             for event in all_events:
                 if event["date"].month != current_month or event["date"].year != current_year:
                     if months_displayed < 3:
-                        stdscr.addstr("\n" + event["date"].strftime("%B %Y") + "\n", curses.A_BOLD | normal_colors["cyan"])
+                        stdscr.addstr("\n" + event["date"].strftime("%B %Y") + "\n", curses.A_BOLD | normal_colors[main_color])
                         current_month = event["date"].month
                         current_year = event["date"].year
                         calendar_months.append((current_month, current_year))
@@ -134,7 +138,7 @@ def main(stdscr):
                 current_row = start_row
                 title = calendar.month_name[month] + " " + str(year)
                 stdscr.addstr(current_row, start_column + 11 - len(title) // 2 - 1,
-                              title, curses.A_BOLD | normal_colors["cyan"])
+                              title, curses.A_BOLD | normal_colors[main_color])
                 current_row += 1
                 stdscr.addstr(current_row, start_column, "Mo Tu We Th Fr Sa Su", curses.A_BOLD)
                 current_row += 1
@@ -155,12 +159,16 @@ def main(stdscr):
                         for birthday in next_birthdays:
                             if birthday["date"] == current_datetime:
                                 date_status = "birthday"
+                            elif birthday["date"].month == month and birthday["date"].day == day:
+                                date_status = "past birthday"
 
-                    if current_datetime < datetime.datetime.now() -datetime.timedelta(days = 1):
+                    if current_datetime < datetime.datetime.now() - datetime.timedelta(days = 1):
                         if date_status == "event":
                             date_status = "past event"
                         elif date_status == "birthday":
                             date_status = "past birthday"
+                        elif date_status == "past birthday":
+                            pass
                         else:
                             date_status = "past"
 
@@ -168,13 +176,13 @@ def main(stdscr):
                     if date_status == "normal":
                         stdscr.addstr(current_row, start_column + day_in_week * 3, text)
                     elif date_status == "event":
-                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, inverted_normal_colors["blue"])
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, inverted_normal_colors[event_color])
                     elif date_status == "birthday":
-                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, inverted_normal_colors["red"])
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, inverted_normal_colors[birthday_color])
                     elif date_status == "past event":
-                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, normal_colors["blue"])
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, normal_colors[event_color])
                     elif date_status == "past birthday":
-                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, normal_colors["red"])
+                        stdscr.addstr(current_row, start_column + day_in_week * 3, text, normal_colors[birthday_color])
                     elif date_status == "past":
                         stdscr.addstr(current_row, start_column + day_in_week * 3, text, bright_colors["white"])
                     
@@ -231,12 +239,12 @@ def main(stdscr):
                         current_row = max(current_rows)
 
 
-                stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["blue"])
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors[event_color])
                 stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - event")
 
                 current_row += 1
 
-                stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors["red"])
+                stdscr.addstr(current_row, border + (cols - border) // 2 - 8, "  ", inverted_normal_colors[birthday_color])
                 stdscr.addstr(current_row, border + (cols - border) // 2 - 8 + 2, " - birthday")
 
                 stdscr.refresh()
