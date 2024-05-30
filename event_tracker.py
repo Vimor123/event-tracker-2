@@ -88,14 +88,18 @@ def main(stdscr):
                     elif years % 10 == 3:
                         suffix = "rd"
 
+                    birthday_event_string = "{}'s {}{} bithday".format(birthday["name"], years, suffix)
+                    if birthday["name"].endswith("s"):
+                        birthday_event_string = "{}' {}{} birthday".format(birthday["name"], years, suffix)
+
                     all_events.append({
                             "date" : datetime.datetime(birthday_year, birthday_month, birthday_day),
-                            "name" : "{}'s {}{} birthday".format(birthday["name"], years, suffix)
+                            "name" : birthday_event_string
                         })
 
                     next_birthdays.append({
                             "date" : datetime.datetime(birthday_year, birthday_month, birthday_day),
-                            "name" : "{}'s {}{} birthday".format(birthday["name"], years, suffix)
+                            "name" : birthday_event_string
                         })
 
             def event_date(event):
